@@ -1,0 +1,47 @@
+name: Frontend Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontporch/**"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontporch
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontporch/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export web build
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EXPO_PUBLIC_AUTH0_DOMAIN: ${{ vars.EXPO_PUBLIC_AUTH0_DOMAIN }}
+          EXPO_PUBLIC_AUTH0_CLIENT_ID: ${{ vars.EXPO_PUBLIC_AUTH0_CLIENT_ID }}
+          EXPO_PUBLIC_AUTH0_AUDIENCE: ${{ vars.EXPO_PUBLIC_AUTH0_AUDIENCE }}
+        run: npx expo export --platform web
+
+      - name: Deploy to droplet
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ vars.DROPLET_IP }}
+          USER: ${{ vars.DROPLET_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key" \
+            dist/ "${USER}@${HOST}:/var/www/rgk/"

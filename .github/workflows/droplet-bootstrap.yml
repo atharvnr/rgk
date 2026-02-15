@@ -1,0 +1,64 @@
+name: Droplet Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ vars.DROPLET_IP }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Write SSL certs
+        env:
+          CF_ORIGIN_CERT: ${{ secrets.CF_ORIGIN_CERT }}
+          CF_ORIGIN_KEY: ${{ secrets.CF_ORIGIN_KEY }}
+        run: |
+          mkdir -p infra/ssl
+          echo "$CF_ORIGIN_CERT" > infra/ssl/cert.pem
+          echo "$CF_ORIGIN_KEY" > infra/ssl/key.pem
+
+      - name: Write backend .env
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          AUTH0_DOMAIN: ${{ vars.EXPO_PUBLIC_AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE: ${{ vars.EXPO_PUBLIC_AUTH0_AUDIENCE }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+        run: |
+          cat > infra/.env << EOF
+          MONGODB_URI=${MONGODB_URI}
+          DATABASE_NAME=rgk
+          AUTH0_DOMAIN=${AUTH0_DOMAIN}
+          AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
+          CORS_ORIGINS=${CORS_ORIGINS}
+          EOF
+
+      - name: Copy infra files to droplet
+        env:
+          HOST: ${{ vars.DROPLET_IP }}
+          USER: ${{ vars.DROPLET_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "mkdir -p /root/rgk/infra"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key" \
+            infra/ "${USER}@${HOST}:/root/rgk/infra/"
+
+      - name: Run bootstrap
+        env:
+          HOST: ${{ vars.DROPLET_IP }}
+          USER: ${{ vars.DROPLET_USER }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "GHCR_USER=${GHCR_USER} GHCR_PAT=${GHCR_PAT} bash /root/rgk/infra/init.sh"

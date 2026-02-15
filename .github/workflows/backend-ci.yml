@@ -1,0 +1,36 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "blackcortex/**"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blackcortex
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check app/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check app/ tests/
+
+      - name: Mypy
+        run: mypy app/ --ignore-missing-imports
+
+      - name: Pytest
+        run: pytest tests/ -v
