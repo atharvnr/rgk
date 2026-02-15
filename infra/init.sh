@@ -43,6 +43,6 @@ echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$(echo -n "${GHCR_USER}:${GHCR_PAT}" |
 
 # Deploy
 echo "Starting services..."
-docker compose -f /root/rgk/infira/docker-compose.yml up -d
+docker compose -f /root/rgk/infra/docker-compose.yml up -d
 
 echo "=== Bootstrap complete ==="
