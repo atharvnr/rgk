@@ -13,7 +13,7 @@ const discovery = {
   revocationEndpoint: `https://${AUTH0_DOMAIN}/v2/logout`,
 };
 
-const redirectUri = AuthSession.makeRedirectUri({ scheme: "rentgrandkids" });
+const redirectUri = AuthSession.makeRedirectUri({ scheme: "rentgrandkids", path: "callback" });
 
 const TOKEN_KEY = "rgk_access_token";
 const REFRESH_KEY = "rgk_refresh_token";
