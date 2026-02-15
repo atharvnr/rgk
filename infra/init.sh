@@ -41,12 +41,8 @@ echo "Configuring GHCR access..."
 mkdir -p /root/.docker
 echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"$(echo -n "${GHCR_USER}:${GHCR_PAT}" | base64)\"}}}" > /root/.docker/config.json
 
-# Copy .env for docker-compose
-echo "Setting up environment..."
-cp /root/rgk/infra/.env /root/rgk/.env
-
 # Deploy
 echo "Starting services..."
-docker compose -f /root/rgk/docker-compose.yml up -d
+docker compose -f /root/rgk/infira/docker-compose.yml up -d
 
 echo "=== Bootstrap complete ==="
