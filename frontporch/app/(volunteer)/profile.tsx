@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import {
   Text,
   TextInput,
@@ -8,18 +8,14 @@ import {
   Divider,
   ActivityIndicator,
 } from "react-native-paper";
-import { useDispatch } from "react-redux";
-import { useRouter } from "expo-router";
 import { useGetMeQuery, useUpdateMeMutation } from "../../src/services/api";
-import { logout } from "../../src/store/authSlice";
-import { clearTokens } from "../../src/services/auth";
+import { useLogout } from "../../src/hooks/useLogout";
 import { ErrorState } from "../../src/components/ErrorState";
 import { getErrorMessage } from "../../src/utils/errorMessages";
 import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 
 export default function ProfileScreen() {
-  const dispatch = useDispatch();
-  const router = useRouter();
+  const handleLogout = useLogout();
   const { showError, showSuccess } = useAppSnackbar();
   const { data: user, isLoading: userLoading, isError, error, refetch } = useGetMeQuery();
   const [updateMe, { isLoading: updateLoading }] = useUpdateMeMutation();
@@ -60,21 +56,6 @@ export default function ProfileScreen() {
     setPhone(user?.phone || "");
     setBio(user?.bio || "");
     setIsEditing(false);
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await clearTokens();
-          dispatch(logout());
-          router.replace("/");
-        },
-      },
-    ]);
   };
 
   const initials = user?.name

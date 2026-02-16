@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, ScrollView, StyleSheet } from "react-native";
 import {
   TextInput,
   Button,
@@ -7,18 +7,14 @@ import {
   Avatar,
   ActivityIndicator,
 } from "react-native-paper";
-import { useRouter } from "expo-router";
-import { useDispatch } from "react-redux";
 import { useGetMeQuery, useUpdateMeMutation } from "../../src/services/api";
-import { logout } from "../../src/store/authSlice";
-import { clearTokens } from "../../src/services/auth";
+import { useLogout } from "../../src/hooks/useLogout";
 import { ErrorState } from "../../src/components/ErrorState";
 import { getErrorMessage } from "../../src/utils/errorMessages";
 import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 
 export default function Profile() {
-  const router = useRouter();
-  const dispatch = useDispatch();
+  const handleLogout = useLogout();
   const { showError, showSuccess } = useAppSnackbar();
   const { data: user, isLoading: userLoading, isError, error, refetch } = useGetMeQuery();
   const [updateMe, { isLoading: updating }] = useUpdateMeMutation();
@@ -50,21 +46,6 @@ export default function Profile() {
     } catch (err: any) {
       showError(err, "Failed to update profile");
     }
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await clearTokens();
-          dispatch(logout());
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
   };
 
   if (userLoading) {

@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import {
   TextInput,
   Button,
@@ -7,18 +7,14 @@ import {
   Text,
 } from "react-native-paper";
 import { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { useGetMeQuery, useUpdateMeMutation } from "../../src/services/api";
-import { logout } from "../../src/store/authSlice";
-import { clearTokens, logoutFromAuth0 } from "../../src/services/auth";
-import { useRouter } from "expo-router";
+import { useLogout } from "../../src/hooks/useLogout";
 import { ErrorState } from "../../src/components/ErrorState";
 import { getErrorMessage } from "../../src/utils/errorMessages";
 import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 
 export default function ProfileScreen() {
-  const router = useRouter();
-  const dispatch = useDispatch();
+  const handleLogout = useLogout();
   const { showError, showSuccess } = useAppSnackbar();
   const { data: user, isLoading, isError, error, refetch } = useGetMeQuery();
   const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
@@ -40,37 +36,6 @@ export default function ProfileScreen() {
     } catch (err) {
       showError(err as any, "Failed to update profile");
     }
-  };
-
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-
-          try {
-            // 🔴 STEP 1 — logout from Auth0 session
-            await logoutFromAuth0();
-
-            // 🔴 STEP 2 — clear local tokens
-            await clearTokens();
-
-            // 🔴 STEP 3 — clear redux state
-            dispatch(logout());
-
-            // 🔴 STEP 4 — go to login screen
-            router.replace("/(auth)/login");
-          } catch (e) {
-            console.log("Logout error", e);
-          }
-        },
-      },
-    ]);
   };
 
   if (isLoading) {
@@ -187,3 +152,4 @@ const styles = StyleSheet.create({
     borderColor: "#F44336",
   },
 });
+  
