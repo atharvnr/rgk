@@ -12,6 +12,7 @@ services:
 
   api:
     image: ghcr.io/atharvnr/rgk-api:latest
+    container_name: rgk-api
     restart: unless-stopped
     env_file: .env
     ports:
@@ -32,7 +33,7 @@ services:
       - WATCHTOWER_POLL_INTERVAL=300
       - WATCHTOWER_CLEANUP=true
       - DOCKER_CONFIG=/
-    command: api
+    command: rgk-api
 
 volumes:
   redis_data:
