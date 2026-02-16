@@ -11,7 +11,7 @@ async def test_health(client):
 
 @pytest.mark.asyncio
 async def test_health_ready(client, mock_redis):
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import AsyncMock, patch
 
     mock_motor = AsyncMock()
     mock_motor.admin.command = AsyncMock(return_value={"ok": 1})

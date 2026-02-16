@@ -1,4 +1,4 @@
-import { View, StyleSheet, FlatList, Alert } from "react-native";
+import { View, StyleSheet, FlatList } from "react-native";
 import { ActivityIndicator, Card, Button, Text } from "react-native-paper";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../src/store";
@@ -7,12 +7,16 @@ import {
   useApproveSessionMutation,
 } from "../../src/services/api";
 import { EmptyState } from "../../src/components/EmptyState";
+import { ErrorState } from "../../src/components/ErrorState";
+import { getErrorMessage } from "../../src/utils/errorMessages";
+import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 import type { VolunteerSession } from "../../src/types";
 import { useRouter } from "expo-router";
 
 export default function ApprovalsScreen() {
   const router = useRouter();
-  const { data: sessionsData, isLoading } = useGetSessionsQuery({
+  const { showError, showSuccess } = useAppSnackbar();
+  const { data: sessionsData, isLoading, isError, error, refetch } = useGetSessionsQuery({
     status: "pending_approval",
     limit: 100,
   });
@@ -27,17 +31,18 @@ export default function ApprovalsScreen() {
     );
   }
 
+  if (isError) {
+    return <ErrorState description={getErrorMessage(error)} onRetry={refetch} />;
+  }
+
   const sessions = sessionsData?.items || [];
 
   const handleApprove = async (sessionId: string, approved: boolean) => {
     try {
       await approveSession({ id: sessionId, approved }).unwrap();
-      Alert.alert(
-        "Success",
-        `Session ${approved ? "approved" : "rejected"} successfully`
-      );
-    } catch (error) {
-      Alert.alert("Error", "Failed to update session");
+      showSuccess(`Session ${approved ? "approved" : "rejected"} successfully`);
+    } catch (err) {
+      showError(err as any, "Failed to update session");
     }
   };
 

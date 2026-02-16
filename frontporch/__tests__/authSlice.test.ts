@@ -24,7 +24,7 @@ describe("authSlice", () => {
     const state = authReducer(initialState, setToken("test-token"));
     expect(state.token).toBe("test-token");
     expect(state.isAuthenticated).toBe(true);
-    expect(state.isLoading).toBe(false);
+    expect(state.isLoading).toBe(true); // stays true until hydration completes
   });
 
   it("should handle setUser", () => {
@@ -33,7 +33,8 @@ describe("authSlice", () => {
       auth0_id: "auth0|123",
       email: "test@example.com",
       name: "Test",
-      role: "student",
+      role: "volunteer",
+      verification_status: "unverified",
       is_active: true,
       created_at: "2026-01-01",
       updated_at: "2026-01-01",
@@ -43,8 +44,8 @@ describe("authSlice", () => {
   });
 
   it("should handle setOnboardingRole", () => {
-    const state = authReducer(initialState, setOnboardingRole("elder"));
-    expect(state.onboardingRole).toBe("elder");
+    const state = authReducer(initialState, setOnboardingRole("needy"));
+    expect(state.onboardingRole).toBe("needy");
   });
 
   it("should handle logout", () => {

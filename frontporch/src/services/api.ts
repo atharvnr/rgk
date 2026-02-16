@@ -1,4 +1,10 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  type BaseQueryFn,
+  type FetchArgs,
+  type FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
 import type { RootState } from "../store";
 import type {
   PaginatedResponse,
@@ -8,22 +14,71 @@ import type {
   VolunteerRequest,
   VolunteerSession,
 } from "../types";
+import { logout, setToken } from "../store/authSlice";
+import { showSnackbar } from "../store/uiSlice";
+import { clearTokens, refreshAccessToken } from "./auth";
 
 const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://api.rentgrandkids.org";
+  process.env.EXPO_PUBLIC_API_URL || "https://api.rentgrandkids.org/api/v1";
+
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: API_URL,
+  prepareHeaders: (headers, { getState }) => {
+    const token = (getState() as RootState).auth.token;
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    return headers;
+  },
+});
+
+let refreshPromise: Promise<string | null> | null = null;
+
+const baseQueryWithErrorHandling: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
+  let result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error && result.error.status === 401) {
+    // Skip refresh for auth/register — a 401 there means the token is genuinely bad
+    const url = typeof args === "string" ? args : args.url;
+    if (url === "/auth/register") {
+      await clearTokens();
+      api.dispatch(logout());
+      return result;
+    }
+
+    // Mutex: coalesce concurrent 401s into a single refresh attempt
+    if (!refreshPromise) {
+      refreshPromise = refreshAccessToken();
+    }
+    const newToken = await refreshPromise;
+    refreshPromise = null;
+
+    if (newToken) {
+      api.dispatch(setToken(newToken));
+      // Retry the original request with the new token
+      result = await rawBaseQuery(args, api, extraOptions);
+    } else {
+      await clearTokens();
+      api.dispatch(logout());
+      api.dispatch(
+        showSnackbar({
+          message: "Session expired. Please log in again.",
+          type: "error",
+        })
+      );
+    }
+  }
+
+  return result;
+};
 
 export const api = createApi({
   reducerPath: "api",
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${API_URL}/api/v1`,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.token;
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithErrorHandling,
   tagTypes: ["User", "School", "Request", "Session"],
   endpoints: (builder) => ({
     // Auth
@@ -151,14 +206,21 @@ export const api = createApi({
       query: (id) => `/sessions/${id}`,
       providesTags: ["Session"],
     }),
+    elderConfirmSession: builder.mutation<VolunteerSession, string>({
+      query: (id) => ({
+        url: `/sessions/${id}/elder-confirm`,
+        method: "PUT",
+      }),
+      invalidatesTags: ["Session"],
+    }),
     approveSession: builder.mutation<
       VolunteerSession,
-      { id: string; approved: boolean }
+      { id: string; approved: boolean; rejection_reason?: string }
     >({
-      query: ({ id, approved }) => ({
+      query: ({ id, ...body }) => ({
         url: `/sessions/${id}/approve`,
         method: "PUT",
-        body: { approved },
+        body,
       }),
       invalidatesTags: ["Session"],
     }),
@@ -185,5 +247,6 @@ export const {
   useCreateSessionMutation,
   useGetSessionsQuery,
   useGetSessionQuery,
+  useElderConfirmSessionMutation,
   useApproveSessionMutation,
 } = api;

@@ -6,9 +6,20 @@ from pydantic import EmailStr, Field
 
 
 class UserRole(StrEnum):
-    STUDENT = "student"
+    ROOT = "root"
     SCHOOL_ADMIN = "school_admin"
-    ELDER = "elder"
+    SCHOOL_USER = "school_user"
+    VOLUNTEER = "volunteer"
+    NEEDY = "needy"
+    NEEDY_PROXY = "needy_proxy"
+
+
+class VerificationStatus(StrEnum):
+    NOT_REQUIRED = "not_required"
+    UNVERIFIED = "unverified"
+    PENDING_VERIFICATION = "pending_verification"
+    VERIFIED = "verified"
+    VERIFICATION_FAILED = "verification_failed"
 
 
 class User(Document):
@@ -19,9 +30,12 @@ class User(Document):
     phone: str | None = None
     avatar_url: str | None = None
     bio: str | None = None
-    # Student-specific
+    verification_status: VerificationStatus = VerificationStatus.UNVERIFIED
+    # School-affiliated fields
     school_id: str | None = None
-    # Elder-specific
+    school_issued_id: str | None = None
+    school_email: str | None = None
+    # Needy-specific
     address: str | None = None
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -29,3 +43,6 @@ class User(Document):
 
     class Settings:
         name = "users"
+        indexes = [
+            [("school_id", 1), ("role", 1), ("is_active", 1)],
+        ]

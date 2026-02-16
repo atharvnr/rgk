@@ -7,10 +7,12 @@ import {
   useGetSchoolHoursQuery,
 } from "../../src/services/api";
 import { StatCard } from "../../src/components/StatCard";
+import { ErrorState } from "../../src/components/ErrorState";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 
 export default function SchoolDashboardScreen() {
-  const { data: user, isLoading: userLoading } = useGetMeQuery();
-  const { data: schoolHours, isLoading: hoursLoading } =
+  const { data: user, isLoading: userLoading, isError: userError, error: userErr, refetch: refetchUser } = useGetMeQuery();
+  const { data: schoolHours, isLoading: hoursLoading, isError: hoursError, error: hoursErr, refetch: refetchHours } =
     useGetSchoolHoursQuery(user?.school_id || "", {
       skip: !user?.school_id,
     });
@@ -20,6 +22,15 @@ export default function SchoolDashboardScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
       </View>
+    );
+  }
+
+  if (userError || hoursError) {
+    return (
+      <ErrorState
+        description={getErrorMessage(userErr || hoursErr)}
+        onRetry={() => { refetchUser(); refetchHours(); }}
+      />
     );
   }
 

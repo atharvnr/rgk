@@ -37,3 +37,7 @@ class VolunteerRequest(Document):
 
     class Settings:
         name = "volunteer_requests"
+        indexes = [
+            [("assigned_student_id", 1), ("status", 1)],
+            [("status", 1), ("created_at", 1)],
+        ]

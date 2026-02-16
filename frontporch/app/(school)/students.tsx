@@ -7,11 +7,13 @@ import {
   useGetSchoolStudentsQuery,
 } from "../../src/services/api";
 import { EmptyState } from "../../src/components/EmptyState";
+import { ErrorState } from "../../src/components/ErrorState";
+import { getErrorMessage } from "../../src/utils/errorMessages";
 import type { User } from "../../src/types";
 
 export default function StudentsScreen() {
-  const { data: user, isLoading: userLoading } = useGetMeQuery();
-  const { data: studentsData, isLoading: studentsLoading } =
+  const { data: user, isLoading: userLoading, isError: userError, error: userErr, refetch: refetchUser } = useGetMeQuery();
+  const { data: studentsData, isLoading: studentsLoading, isError: studentsError, error: studentsErr, refetch: refetchStudents } =
     useGetSchoolStudentsQuery(
       { id: user?.school_id || "", limit: 100 },
       { skip: !user?.school_id }
@@ -22,6 +24,15 @@ export default function StudentsScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
       </View>
+    );
+  }
+
+  if (userError || studentsError) {
+    return (
+      <ErrorState
+        description={getErrorMessage(userErr || studentsErr)}
+        onRetry={() => { refetchUser(); refetchStudents(); }}
+      />
     );
   }
 

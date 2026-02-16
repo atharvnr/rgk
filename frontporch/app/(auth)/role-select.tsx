@@ -54,24 +54,24 @@ export default function RoleSelectScreen() {
 
       <View style={styles.cardsContainer}>
         <RoleCard
-          title="Student"
+          title="Volunteer"
           description="Earn community service hours by helping elders in your community"
           icon="🎓"
-          role="student"
-          onSelect={handleRoleSelect}
-        />
-        <RoleCard
-          title="School Admin"
-          description="Manage students and track community service hours for your school"
-          icon="🏫"
-          role="school_admin"
+          role="volunteer"
           onSelect={handleRoleSelect}
         />
         <RoleCard
           title="Elder"
           description="Request help with daily tasks from student volunteers"
           icon="👵"
-          role="elder"
+          role="needy"
+          onSelect={handleRoleSelect}
+        />
+        <RoleCard
+          title="Proxy for Elder"
+          description="Manage requests on behalf of an elder family member"
+          icon="🤝"
+          role="needy_proxy"
           onSelect={handleRoleSelect}
         />
       </View>

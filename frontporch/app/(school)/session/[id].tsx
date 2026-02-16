@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import {
   Text,
   ActivityIndicator,
@@ -12,11 +12,15 @@ import {
   useGetUserQuery,
   useApproveSessionMutation,
 } from "../../../src/services/api";
+import { ErrorState } from "../../../src/components/ErrorState";
+import { getErrorMessage } from "../../../src/utils/errorMessages";
+import { useAppSnackbar } from "../../../src/hooks/useAppSnackbar";
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: session, isLoading: sessionLoading } = useGetSessionQuery(
+  const { showError, showSuccess } = useAppSnackbar();
+  const { data: session, isLoading: sessionLoading, isError, error, refetch } = useGetSessionQuery(
     id || ""
   );
   const { data: student, isLoading: studentLoading } = useGetUserQuery(
@@ -34,6 +38,10 @@ export default function SessionDetailScreen() {
     );
   }
 
+  if (isError) {
+    return <ErrorState description={getErrorMessage(error)} onRetry={refetch} />;
+  }
+
   if (!session) {
     return (
       <View style={styles.loadingContainer}>
@@ -45,18 +53,10 @@ export default function SessionDetailScreen() {
   const handleApprove = async (approved: boolean) => {
     try {
       await approveSession({ id: session.id, approved }).unwrap();
-      Alert.alert(
-        "Success",
-        `Session ${approved ? "approved" : "rejected"} successfully`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
-      );
-    } catch (error) {
-      Alert.alert("Error", "Failed to update session");
+      showSuccess(`Session ${approved ? "approved" : "rejected"} successfully`);
+      router.back();
+    } catch (err) {
+      showError(err as any, "Failed to update session");
     }
   };
 

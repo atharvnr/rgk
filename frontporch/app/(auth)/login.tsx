@@ -5,7 +5,8 @@ import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import type { AppDispatch } from "../../src/store";
 import { useAuth0Config, exchangeCodeForTokens, storeTokens } from "../../src/services/auth";
-import { setToken } from "../../src/store/authSlice";
+import { setToken, setUser, setLoading } from "../../src/store/authSlice";
+import { api } from "../../src/services/api";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -13,19 +14,32 @@ export default function LoginScreen() {
   const { request, result, promptAsync } = useAuth0Config();
 
   useEffect(() => {
-    if (result?.type === "success") {
-      handleAuthSuccess(result.params.code);
+    console.log("[Auth] result changed:", JSON.stringify(result, null, 2));
+    if (result?.type === "success" && request?.codeVerifier) {
+      handleAuthSuccess(result.params.code, request.codeVerifier);
     }
   }, [result]);
 
-  const handleAuthSuccess = async (code: string) => {
+  const handleAuthSuccess = async (code: string, codeVerifier: string) => {
     try {
-      const { accessToken, refreshToken } = await exchangeCodeForTokens(code);
+      const { accessToken, refreshToken } = await exchangeCodeForTokens(code, codeVerifier);
+      console.log("[Auth] Login tokens received — refresh token:", refreshToken ? "present" : "MISSING");
       await storeTokens(accessToken, refreshToken);
       dispatch(setToken(accessToken));
-      router.replace("/(auth)/role-select");
+
+      // Check if user is already registered
+      const result = await dispatch(api.endpoints.getMe.initiate(undefined));
+      if (result.data) {
+        dispatch(setUser(result.data));
+        dispatch(setLoading(false));
+        router.replace("/");
+      } else {
+        dispatch(setLoading(false));
+        router.replace("/(auth)/role-select");
+      }
     } catch (error) {
       console.error("Auth error:", error);
+      dispatch(setLoading(false));
     }
   };
 

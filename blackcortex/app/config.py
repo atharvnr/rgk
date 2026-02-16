@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_default: str = "100/minute"
 
+    # Root users (auto-assigned root role on registration)
+    rgk_root_users: list[str] = []
+
+    # Internal API key for cron jobs
+    internal_api_key: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

@@ -26,7 +26,7 @@
       "package": "org.rentgrandkids.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/rgk-48.png",
       "bundler": "metro"
     },
     "plugins": [

@@ -1,0 +1,47 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  api:
+    build:
+      context: ../blackcortex
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: ../blackcortex/.env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/rgk
+      - REDIS_URL=redis://redis:6379
+
+volumes:
+  mongo_data:
+  redis_data:

@@ -14,14 +14,29 @@ async def init_db() -> None:
     motor_client = AsyncIOMotorClient(settings.mongodb_uri)
     db = motor_client[settings.database_name]
 
+    from app.models.app_config import AppConfig
+    from app.models.audit_log import AuditLog
+    from app.models.proxy_link import ProxyLink
+    from app.models.rating import Rating
     from app.models.school import School
+    from app.models.school_association_request import SchoolAssociationRequest
     from app.models.user import User
     from app.models.volunteer_request import VolunteerRequest
     from app.models.volunteer_session import VolunteerSession
 
     await init_beanie(
         database=db,
-        document_models=[User, School, VolunteerRequest, VolunteerSession],
+        document_models=[
+            User,
+            School,
+            VolunteerRequest,
+            VolunteerSession,
+            AppConfig,
+            ProxyLink,
+            Rating,
+            AuditLog,
+            SchoolAssociationRequest,
+        ],
     )
 
     redis_client = Redis.from_url(settings.redis_url, decode_responses=True)

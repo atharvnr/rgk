@@ -15,12 +15,14 @@ export default function Index() {
   if (!user) return <Redirect href="/(auth)/role-select" />;
 
   switch (user.role) {
-    case "student":
-      return <Redirect href="/(student)/home" />;
+    case "volunteer":
+      return <Redirect href="/(volunteer)/home" />;
     case "school_admin":
+    case "school_user":
       return <Redirect href="/(school)/dashboard" />;
-    case "elder":
-      return <Redirect href="/(elder)/home" />;
+    case "needy":
+    case "needy_proxy":
+      return <Redirect href="/(needy)/home" />;
     default:
       return <Redirect href="/(auth)/login" />;
   }

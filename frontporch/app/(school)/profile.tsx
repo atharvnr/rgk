@@ -12,11 +12,15 @@ import { useGetMeQuery, useUpdateMeMutation } from "../../src/services/api";
 import { logout } from "../../src/store/authSlice";
 import { clearTokens } from "../../src/services/auth";
 import { useRouter } from "expo-router";
+import { ErrorState } from "../../src/components/ErrorState";
+import { getErrorMessage } from "../../src/utils/errorMessages";
+import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { data: user, isLoading } = useGetMeQuery();
+  const { showError, showSuccess } = useAppSnackbar();
+  const { data: user, isLoading, isError, error, refetch } = useGetMeQuery();
   const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
 
   const [name, setName] = useState("");
@@ -32,9 +36,9 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     try {
       await updateMe({ name, phone }).unwrap();
-      Alert.alert("Success", "Profile updated successfully");
-    } catch (error) {
-      Alert.alert("Error", "Failed to update profile");
+      showSuccess("Profile updated successfully");
+    } catch (err) {
+      showError(err as any, "Failed to update profile");
     }
   };
 
@@ -62,6 +66,10 @@ export default function ProfileScreen() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  if (isError) {
+    return <ErrorState description={getErrorMessage(error)} onRetry={refetch} />;
   }
 
   return (

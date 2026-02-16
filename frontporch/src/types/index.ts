@@ -1,4 +1,17 @@
-export type UserRole = "student" | "school_admin" | "elder";
+export type UserRole =
+  | "root"
+  | "school_admin"
+  | "school_user"
+  | "volunteer"
+  | "needy"
+  | "needy_proxy";
+
+export type VerificationStatus =
+  | "not_required"
+  | "unverified"
+  | "pending_verification"
+  | "verified"
+  | "verification_failed";
 
 export interface User {
   id: string;
@@ -9,7 +22,10 @@ export interface User {
   phone?: string;
   avatar_url?: string;
   bio?: string;
+  verification_status: VerificationStatus;
   school_id?: string;
+  school_issued_id?: string;
+  school_email?: string;
   address?: string;
   is_active: boolean;
   created_at: string;
@@ -61,7 +77,11 @@ export interface VolunteerRequest {
   updated_at: string;
 }
 
-export type SessionStatus = "pending_approval" | "approved" | "rejected";
+export type SessionStatus =
+  | "pending_elder_confirmation"
+  | "pending_approval"
+  | "approved"
+  | "rejected";
 
 export interface VolunteerSession {
   id: string;
@@ -73,8 +93,12 @@ export interface VolunteerSession {
   date: string;
   notes?: string;
   status: SessionStatus;
+  elder_confirmed: boolean;
+  elder_confirmed_at?: string;
+  elder_confirmed_by?: string;
   approved_by?: string;
   approved_at?: string;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
 }
