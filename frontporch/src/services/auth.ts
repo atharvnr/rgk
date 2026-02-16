@@ -86,6 +86,14 @@ export async function clearTokens(): Promise<void> {
   await storage.deleteItem(TOKEN_KEY);
   await storage.deleteItem(REFRESH_KEY);
 }
+export async function logoutFromAuth0(): Promise<void> {
+  const logoutUrl = `https://${AUTH0_DOMAIN}/v2/logout?client_id=${AUTH0_CLIENT_ID}`;
+  try {
+    await WebBrowser.openBrowserAsync(logoutUrl);
+  } catch (err) {
+    console.error("Failed to open logout URL:", err);
+  }
+}
 
 export function useAuth0Config() {
   const [request, result, promptAsync] = AuthSession.useAuthRequest(

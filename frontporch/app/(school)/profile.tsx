@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useGetMeQuery, useUpdateMeMutation } from "../../src/services/api";
 import { logout } from "../../src/store/authSlice";
-import { clearTokens } from "../../src/services/auth";
+import { clearTokens, logoutFromAuth0 } from "../../src/services/auth";
 import { useRouter } from "expo-router";
 import { ErrorState } from "../../src/components/ErrorState";
 import { getErrorMessage } from "../../src/utils/errorMessages";
@@ -52,9 +52,22 @@ export default function ProfileScreen() {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          await clearTokens();
-          dispatch(logout());
-          router.replace("/(auth)/login");
+
+          try {
+            // 🔴 STEP 1 — logout from Auth0 session
+            await logoutFromAuth0();
+
+            // 🔴 STEP 2 — clear local tokens
+            await clearTokens();
+
+            // 🔴 STEP 3 — clear redux state
+            dispatch(logout());
+
+            // 🔴 STEP 4 — go to login screen
+            router.replace("/(auth)/login");
+          } catch (e) {
+            console.log("Logout error", e);
+          }
         },
       },
     ]);
