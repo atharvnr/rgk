@@ -70,7 +70,7 @@ export default function LoginScreen() {
           style={styles.button}
           contentStyle={styles.buttonContent}
         >
-          Sign In with Auth0
+          Login with Auth0
         </Button>
       </View>
     </View>
