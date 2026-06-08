@@ -41,12 +41,25 @@ export default function OnboardingScreen() {
 
       // Include reCAPTCHA token when available on web
       const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
-      if (typeof window !== "undefined" && siteKey && (window as any).grecaptcha) {
+      if (typeof window !== "undefined" && siteKey) {
+        const grecaptcha = (window as any).grecaptcha;
+        if (!grecaptcha) {
+          showError(new Error("Captcha not loaded"), "Captcha not ready. Refresh the page and try again.");
+          return;
+        }
+
         try {
-          const token: string = await (window as any).grecaptcha.execute(siteKey, { action: "register" });
+          const token: string = await new Promise<string>((resolve, reject) => {
+            try {
+              grecaptcha.ready(() => {
+                grecaptcha.execute(siteKey, { action: "register" }).then((t: string) => resolve(t)).catch(reject);
+              });
+            } catch (err) {
+              reject(err);
+            }
+          });
           userData.captcha_token = token;
         } catch (e) {
-          // If captcha fails to execute, stop registration and show error
           showError(e as any, "Captcha verification failed. Please try again.");
           return;
         }
