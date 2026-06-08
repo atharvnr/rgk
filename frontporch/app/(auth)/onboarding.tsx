@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { TextInput, Button, Text, ActivityIndicator } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -39,6 +39,19 @@ export default function OnboardingScreen() {
         userData.phone = phone;
       }
 
+      // Include reCAPTCHA token when available on web
+      const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+      if (typeof window !== "undefined" && siteKey && (window as any).grecaptcha) {
+        try {
+          const token: string = await (window as any).grecaptcha.execute(siteKey, { action: "register" });
+          userData.captcha_token = token;
+        } catch (e) {
+          // If captcha fails to execute, stop registration and show error
+          showError(e as any, "Captcha verification failed. Please try again.");
+          return;
+        }
+      }
+
       const user = await register(userData).unwrap();
       dispatch(setUser(user));
       router.replace("/");
@@ -46,6 +59,25 @@ export default function OnboardingScreen() {
       showError(err as any, "Registration failed. Please try again.");
     }
   };
+
+  // Load reCAPTCHA script on web when site key is provided
+  useEffect(() => {
+    const siteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (typeof window === "undefined" || !siteKey) return;
+
+    // If grecaptcha already present, nothing to do
+    if ((window as any).grecaptcha) return;
+
+    const script = document.createElement("script");
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const isValid = () => {
     if (!name) return false;

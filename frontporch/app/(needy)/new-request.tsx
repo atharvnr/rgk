@@ -12,6 +12,7 @@ import {
   useCreateRequestMutation,
   useGetMeQuery,
   useGetMyProxyLinksQuery,
+  useCreateVerificationRequestMutation,
 } from "../../src/services/api";
 import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
 import { ErrorState } from "../../src/components/ErrorState";
@@ -83,6 +84,17 @@ export default function NewRequest() {
   }
 
   if (!isVerified) {
+    const [createVerificationRequest] = useCreateVerificationRequestMutation();
+
+    const handleNotifyAdmin = async () => {
+      try {
+        await createVerificationRequest({ message: "User requests help with verification" }).unwrap();
+        showInfo("Verification request sent to admins. They will follow up by email or phone.");
+      } catch (e) {
+        showError(e as any, "Failed to notify admins. Please email your documents to the platform admin.");
+      }
+    };
+
     return (
       <ErrorState
         icon="shield-check-outline"
@@ -90,8 +102,10 @@ export default function NewRequest() {
         description={
           user?.verification_status === "pending_verification"
             ? "Your identity verification is being reviewed. You'll be able to create requests once approved."
-            : "You need to complete identity verification before creating requests. Please email your documents to the platform admin."
+            : "You need to complete identity verification before creating requests. You can notify platform admins to request a verification review."
         }
+        actionLabel={user?.verification_status === "pending_verification" ? undefined : "Notify Admin"}
+        onAction={user?.verification_status === "pending_verification" ? undefined : handleNotifyAdmin}
       />
     );
   }

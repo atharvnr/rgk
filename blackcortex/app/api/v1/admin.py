@@ -11,6 +11,8 @@ from app.schemas.admin import AssignAdminBody, PlatformAnalyticsResponse, Verify
 from app.schemas.app_config import AppConfigCreate, AppConfigResponse, AppConfigUpdate
 from app.services import audit_service, config_service, school_service, user_service
 from app.utils.response import paginated_response
+from app.services.verification_service import list_verification_requests, resolve_verification_request
+from app.schemas.verification import VerificationRequestResponse, VerificationRequestResolve
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -167,6 +169,21 @@ async def verify_user(
         "id": str(updated.id),
         "verification_status": updated.verification_status,
     }
+
+
+@router.get("/verification-requests")
+async def admin_list_verification_requests(user: User = Depends(require_role(UserRole.ROOT))):
+    items, _ = await list_verification_requests()
+    # return array of verification request responses
+    return [VerificationRequestResponse.model_validate(i) for i in items]
+
+
+@router.put("/verification-requests/{request_id}/resolve")
+async def admin_resolve_verification_request(request_id: str, data: VerificationRequestResolve, user: User = Depends(require_role(UserRole.ROOT))):
+    req = await resolve_verification_request(request_id, str(user.id), data.notes)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return VerificationRequestResponse.model_validate(req)
 
 
 # --- Assign School Admin ---

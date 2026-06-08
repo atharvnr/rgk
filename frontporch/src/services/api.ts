@@ -230,6 +230,16 @@ export const api = createApi({
     getMyProxyLinks: builder.query<ProxyLink[], void>({
       query: () => "/proxy/links",
     }),
+    // Verification requests (for unverified users to ask admin for help)
+    createVerificationRequest: builder.mutation<any, { message?: string }>({
+      query: (body) => ({ url: "/verification-requests", method: "POST", body }),
+    }),
+    getAdminVerificationRequests: builder.query<any[], void>({
+      query: () => "/admin/verification-requests",
+    }),
+    resolveVerificationRequest: builder.mutation<any, { id: string; notes?: string }>({
+      query: ({ id, notes }) => ({ url: `/admin/verification-requests/${id}/resolve`, method: "PUT", body: { notes } }),
+    }),
   }),
 });
 
@@ -245,6 +255,7 @@ export const {
   useGetSchoolStudentsQuery,
   useGetSchoolHoursQuery,
   useCreateRequestMutation,
+  useCreateVerificationRequestMutation,
   useGetRequestsQuery,
   useGetRequestQuery,
   useUpdateRequestMutation,
@@ -256,4 +267,6 @@ export const {
   useElderConfirmSessionMutation,
   useApproveSessionMutation,
   useGetMyProxyLinksQuery,
+  useGetAdminVerificationRequestsQuery,
+  useResolveVerificationRequestMutation,
 } = api;

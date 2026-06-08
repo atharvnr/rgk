@@ -47,3 +47,9 @@ def paginated_response(
         "skip": skip,
         "limit": limit,
     }
+
+
+def model_to_response(model):
+    d = model.model_dump()
+    d["id"] = str(model.id)
+    return d

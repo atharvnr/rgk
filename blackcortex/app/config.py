@@ -17,13 +17,20 @@ class Settings(BaseSettings):
     # App
     app_name: str = "RGK API"
     debug: bool = False
-    cors_origins: list[str] = ["http://localhost:8081", "https://rentgrandkids.org"]
+    cors_origins: list[str] = [
+        "http://localhost:8081", "https://rentgrandkids.org"]
 
     # Rate limiting
     rate_limit_default: str = "100/minute"
 
     # Root users (auto-assigned root role on registration)
     rgk_root_users: list[str] = []
+    # Admin emails (treated as platform root admins)
+    rgk_admin_emails: list[str] = []
+
+    # reCAPTCHA (optional) — when set, server will verify captcha tokens on registration
+    recaptcha_secret: str | None = None
+    recaptcha_score_threshold: float = 0.5
 
     # Internal API key for cron jobs
     internal_api_key: str = ""

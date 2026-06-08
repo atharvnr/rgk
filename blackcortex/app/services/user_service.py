@@ -1,13 +1,13 @@
+from app.utils.exceptions import ConflictError
+from app.utils.db import get_document_by_id
+from app.schemas.user import UserCreate, UserUpdate
+from app.models.user import User, UserRole, VerificationStatus
 import logging
 from datetime import UTC, datetime
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-from app.models.user import User, UserRole, VerificationStatus
-from app.schemas.user import UserCreate, UserUpdate
-from app.utils.db import get_document_by_id
-from app.utils.exceptions import ConflictError
 
 
 def _verification_status_for_role(role: UserRole) -> VerificationStatus:
@@ -22,9 +22,9 @@ async def create_user(data: UserCreate, auth0_id: str, email: str) -> User:
     if existing or existing_email:
         raise ConflictError("Registration failed")
 
-    # Auto-assign root if email matches RGK_ROOT_USERS
+    # Auto-assign root if email matches RGK_ROOT_USERS or rgk_admin_emails
     role = data.role
-    if email in settings.rgk_root_users:
+    if email in settings.rgk_root_users or email in settings.rgk_admin_emails:
         role = UserRole.ROOT
 
     verification_status = _verification_status_for_role(role)

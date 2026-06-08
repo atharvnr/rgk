@@ -4,7 +4,8 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.user import UserRole, VerificationStatus
 
-_SELF_ASSIGNABLE_ROLES = {UserRole.VOLUNTEER, UserRole.NEEDY, UserRole.NEEDY_PROXY}
+_SELF_ASSIGNABLE_ROLES = {UserRole.VOLUNTEER,
+                          UserRole.NEEDY, UserRole.NEEDY_PROXY}
 
 
 class UserCreate(BaseModel):
@@ -13,13 +14,16 @@ class UserCreate(BaseModel):
     phone: str | None = Field(None, max_length=20)
     bio: str | None = Field(None, max_length=500)
     address: str | None = Field(None, max_length=300)
+    captcha_token: str | None = None
 
     @field_validator("role")
     @classmethod
     def restrict_self_assignable_roles(cls, v: UserRole) -> UserRole:
         if v not in _SELF_ASSIGNABLE_ROLES:
-            allowed = ", ".join(sorted(r.value for r in _SELF_ASSIGNABLE_ROLES))
-            raise ValueError(f"Cannot self-assign role '{v}'. Allowed: {allowed}")
+            allowed = ", ".join(
+                sorted(r.value for r in _SELF_ASSIGNABLE_ROLES))
+            raise ValueError(
+                f"Cannot self-assign role '{v}'. Allowed: {allowed}")
         return v
 
 

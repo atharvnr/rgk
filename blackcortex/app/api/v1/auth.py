@@ -71,5 +71,32 @@ async def register(
     data: UserCreate,
     claims: dict = Depends(_extract_token_claims),
 ):
+    # If reCAPTCHA is configured, require and verify captcha token
+    if settings.recaptcha_secret:
+        token = getattr(data, "captcha_token", None)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Missing captcha token")
+
+        # Verify with Google reCAPTCHA API
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    "https://www.google.com/recaptcha/api/siteverify",
+                    data={"secret": settings.recaptcha_secret, "response": token},
+                    timeout=10.0,
+                )
+                resp.raise_for_status()
+                body = resp.json()
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Captcha verification failed")
+
+        success = body.get("success")
+        score = body.get("score")
+        if not success or (score is not None and score < settings.recaptcha_score_threshold):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Captcha verification failed")
+
     user = await user_service.create_user(data, claims["auth0_id"], claims["email"])
     return user_to_response(user)
