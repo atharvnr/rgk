@@ -87,11 +87,16 @@ export async function clearTokens(): Promise<void> {
   await storage.deleteItem(REFRESH_KEY);
 }
 export async function logoutFromAuth0(): Promise<void> {
-  const logoutUrl = `https://${AUTH0_DOMAIN}/v2/logout?client_id=${AUTH0_CLIENT_ID}`;
+  const returnTo = Platform.OS === "web" ? window.location.origin : redirectUri;
+  const logoutUrl = `https://${AUTH0_DOMAIN}/v2/logout?client_id=${AUTH0_CLIENT_ID}&returnTo=${encodeURIComponent(returnTo)}`;
   try {
-    await WebBrowser.openBrowserAsync(logoutUrl);
-  } catch (err) {
-    console.error("Failed to open logout URL:", err);
+    if (Platform.OS === "web") {
+      await fetch(logoutUrl, { mode: "no-cors" });
+    } else {
+      await WebBrowser.openBrowserAsync(logoutUrl);
+    }
+  } catch {
+    // Auth0 session cleanup is best-effort — local tokens are already cleared
   }
 }
 

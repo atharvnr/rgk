@@ -8,8 +8,13 @@ import {
   ActivityIndicator,
 } from "react-native-paper";
 import { useRouter } from "expo-router";
-import { useCreateRequestMutation } from "../../src/services/api";
+import {
+  useCreateRequestMutation,
+  useGetMeQuery,
+  useGetMyProxyLinksQuery,
+} from "../../src/services/api";
 import { useAppSnackbar } from "../../src/hooks/useAppSnackbar";
+import { ErrorState } from "../../src/components/ErrorState";
 import type { RequestCategory } from "../../src/types";
 
 const CATEGORIES: { value: RequestCategory; label: string }[] = [
@@ -24,7 +29,16 @@ const CATEGORIES: { value: RequestCategory; label: string }[] = [
 export default function NewRequest() {
   const router = useRouter();
   const { showError, showSuccess, showInfo } = useAppSnackbar();
+  const { data: user, isLoading: userLoading } = useGetMeQuery();
+  const isProxy = user?.role === "needy_proxy";
+  const {
+    data: proxyLinks,
+    isLoading: linksLoading,
+  } = useGetMyProxyLinksQuery(undefined, { skip: !isProxy });
   const [createRequest, { isLoading }] = useCreateRequestMutation();
+
+  const isVerified = user?.verification_status === "verified";
+  const hasActiveLink = proxyLinks?.some((l) => l.status === "active") ?? false;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -59,6 +73,38 @@ export default function NewRequest() {
       showError(err, "Failed to create request");
     }
   };
+
+  if (userLoading || linksLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <ErrorState
+        icon="shield-check-outline"
+        title="Verification Required"
+        description={
+          user?.verification_status === "pending_verification"
+            ? "Your identity verification is being reviewed. You'll be able to create requests once approved."
+            : "You need to complete identity verification before creating requests. Please email your documents to the platform admin."
+        }
+      />
+    );
+  }
+
+  if (isProxy && !hasActiveLink) {
+    return (
+      <ErrorState
+        icon="account-arrow-right-outline"
+        title="No Elder Linked"
+        description="You need an approved proxy link to an elder before creating requests on their behalf. Please set up a proxy link first."
+      />
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -145,6 +191,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   form: {
     padding: 16,

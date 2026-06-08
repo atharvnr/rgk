@@ -8,6 +8,7 @@ import {
 import type { RootState } from "../store";
 import type {
   PaginatedResponse,
+  ProxyLink,
   SchoolHours,
   School,
   User,
@@ -224,6 +225,11 @@ export const api = createApi({
       }),
       invalidatesTags: ["Session"],
     }),
+
+    // Proxy
+    getMyProxyLinks: builder.query<ProxyLink[], void>({
+      query: () => "/proxy/links",
+    }),
   }),
 });
 
@@ -249,4 +255,5 @@ export const {
   useGetSessionQuery,
   useElderConfirmSessionMutation,
   useApproveSessionMutation,
+  useGetMyProxyLinksQuery,
 } = api;

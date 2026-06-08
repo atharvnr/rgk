@@ -103,6 +103,23 @@ export interface VolunteerSession {
   updated_at: string;
 }
 
+export type ProxyLinkStatus = "pending" | "active" | "rejected" | "revoked";
+
+export interface ProxyLink {
+  id: string;
+  proxy_user_id: string;
+  needy_user_id: string;
+  status: ProxyLinkStatus;
+  rejection_reason?: string;
+  requested_at: string;
+  confirmed_at?: string;
+  confirmed_by?: string;
+  revoked_at?: string;
+  revoked_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
