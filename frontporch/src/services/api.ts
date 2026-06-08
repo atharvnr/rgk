@@ -19,17 +19,8 @@ import { logout, setToken } from "../store/authSlice";
 import { showSnackbar } from "../store/uiSlice";
 import { clearTokens, refreshAccessToken } from "./auth";
 
-function getDefaultApiUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  // When running in the browser during local dev, prefer the current origin
-  // so requests go to the local backend proxied by the dev server.
-  if (typeof window !== "undefined" && window.location && window.location.origin) {
-    return `${window.location.origin}/api/v1`;
-  }
-  return "https://api.rentgrandkids.org/api/v1";
-}
-
-const API_URL = getDefaultApiUrl();
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL || "https://api.rentgrandkids.org/api/v1";
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_URL,
@@ -50,18 +41,6 @@ const baseQueryWithErrorHandling: BaseQueryFn<
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
-
-  // Network-level failures (e.g. backend down, CORS/network blocked) show
-  // a clearer snackbar so users can diagnose connectivity problems.
-  if (result.error && result.error.status === "FETCH_ERROR") {
-    api.dispatch(
-      showSnackbar({
-        message: `Unable to reach API at ${API_URL}. Please check your backend and network.`,
-        type: "error",
-      })
-    );
-    return result;
-  }
 
   if (result.error && result.error.status === 401) {
     // Skip refresh for auth/register — a 401 there means the token is genuinely bad
