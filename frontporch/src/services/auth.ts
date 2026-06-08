@@ -91,7 +91,9 @@ export async function logoutFromAuth0(): Promise<void> {
   const logoutUrl = `https://${AUTH0_DOMAIN}/v2/logout?client_id=${AUTH0_CLIENT_ID}&returnTo=${encodeURIComponent(returnTo)}`;
   try {
     if (Platform.OS === "web") {
-      await fetch(logoutUrl, { mode: "no-cors" });
+      // Redirecting the browser to the Auth0 logout URL clears the Auth0 session cookie.
+      // Using `fetch` with `no-cors` does not reliably clear cookies across browsers.
+      window.location.href = logoutUrl;
     } else {
       await WebBrowser.openBrowserAsync(logoutUrl);
     }
@@ -109,8 +111,9 @@ export function useAuth0Config() {
       scopes: ["openid", "profile", "email", "offline_access"],
       extraParams: {
         audience: process.env.EXPO_PUBLIC_AUTH0_AUDIENCE || "",
-        // force the Auth0 login page to prompt for credentials / account selection
-        prompt: "login",
+        // Ask the IdP to show an account chooser each time.
+        // `select_account` works for Google to present the account picker.
+        prompt: "select_account",
       },
     },
     discovery
