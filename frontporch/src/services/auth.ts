@@ -109,6 +109,8 @@ export function useAuth0Config() {
       scopes: ["openid", "profile", "email", "offline_access"],
       extraParams: {
         audience: process.env.EXPO_PUBLIC_AUTH0_AUDIENCE || "",
+        // force the Auth0 login page to prompt for credentials / account selection
+        prompt: "login",
       },
     },
     discovery
