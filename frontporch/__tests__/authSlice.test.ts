@@ -23,7 +23,8 @@ describe("authSlice", () => {
   it("should handle setToken", () => {
     const state = authReducer(initialState, setToken("test-token"));
     expect(state.token).toBe("test-token");
-    expect(state.isAuthenticated).toBe(true);
+    // Token alone should not mark the user as authenticated until profile is fetched
+    expect(state.isAuthenticated).toBe(false);
     expect(state.isLoading).toBe(true); // stays true until hydration completes
   });
 
@@ -41,6 +42,7 @@ describe("authSlice", () => {
     };
     const state = authReducer(initialState, setUser(user));
     expect(state.user).toEqual(user);
+    expect(state.isAuthenticated).toBe(true);
   });
 
   it("should handle setOnboardingRole", () => {

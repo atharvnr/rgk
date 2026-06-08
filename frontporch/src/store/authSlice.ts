@@ -23,10 +23,11 @@ const authSlice = createSlice({
   reducers: {
     setToken(state, action: PayloadAction<string>) {
       state.token = action.payload;
-      state.isAuthenticated = true;
+      // Do not mark authenticated until we have a user profile
     },
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload;
+      state.isAuthenticated = true;
     },
     setOnboardingRole(state, action: PayloadAction<UserRole>) {
       state.onboardingRole = action.payload;
