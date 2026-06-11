@@ -19,8 +19,21 @@ import { logout, setToken } from "../store/authSlice";
 import { showSnackbar } from "../store/uiSlice";
 import { clearTokens, refreshAccessToken } from "./auth";
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "https://api.rentgrandkids.org/api/v1";
+const DEFAULT_API = "https://api.rentgrandkids.org/api/v1";
+
+let API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API;
+
+// Safety: if the bundle was built with a localhost API URL but is running in a
+// non-local browser (deployed site), prefer the production API. This prevents
+// clients from trying to connect to the developer's localhost and seeing
+// "Unable to connect" errors in production builds.
+if (typeof window !== "undefined") {
+  const hostname = window.location.hostname;
+  const runningLocally = hostname === "localhost" || hostname === "127.0.0.1";
+  if (!runningLocally && API_URL.includes("localhost")) {
+    API_URL = DEFAULT_API;
+  }
+}
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_URL,
