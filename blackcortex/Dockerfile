@@ -2,9 +2,10 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 COPY pyproject.toml .
+COPY requirements.lock .
 COPY app/ app/
 
-RUN pip install --no-cache-dir --prefix=/install .
+RUN pip install --no-cache-dir --prefix=/install -c requirements.lock .
 
 FROM python:3.12-slim
 
