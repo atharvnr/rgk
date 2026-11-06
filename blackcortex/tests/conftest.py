@@ -14,6 +14,7 @@ from app.models.rating import Rating
 from app.models.school import School
 from app.models.school_association_request import SchoolAssociationRequest
 from app.models.user import User, UserRole, VerificationStatus
+from app.models.verification_request import VerificationRequest
 from app.models.volunteer_request import VolunteerRequest
 from app.models.volunteer_session import VolunteerSession
 
@@ -27,6 +28,7 @@ ALL_MODELS = [
     Rating,
     AuditLog,
     SchoolAssociationRequest,
+    VerificationRequest,
 ]
 
 

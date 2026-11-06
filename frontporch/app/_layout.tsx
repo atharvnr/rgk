@@ -38,11 +38,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
     })();
   }, [dispatch]);
 
-  // Auth guard: redirect to login when session ends, regardless of current screen
+  // Auth guard: redirect to login when session ends, regardless of current screen.
+  // The root index ("/", no segments) is public: it renders the landing page.
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === "(auth)";
-    if (!isAuthenticated && !inAuthGroup) {
+    // Typed as a non-empty tuple, but the root index route yields [] at runtime.
+    const atRoot = (segments as string[]).length === 0;
+    if (!isAuthenticated && !inAuthGroup && !atRoot) {
       router.replace("/(auth)/login");
     }
   }, [isAuthenticated, isLoading, segments]);

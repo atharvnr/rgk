@@ -133,3 +133,86 @@ export interface SchoolHours {
   total_hours: number;
   approved_sessions: number;
 }
+
+export interface PublicStats {
+  hours_served: number;
+  sessions_completed: number;
+  volunteers: number;
+  elders_helped: number;
+  schools: number;
+}
+
+// --- Platform admin (root) ---
+
+export interface PlatformAnalytics {
+  total_users: number;
+  total_schools: number;
+  total_volunteers: number;
+  total_needy: number;
+  total_hours: number;
+  total_sessions: number;
+  pending_verifications: number;
+  pending_associations: number;
+}
+
+export type VerificationRequestStatus = "pending" | "resolved";
+
+export interface VerificationRequest {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name?: string | null;
+  phone?: string | null;
+  message?: string | null;
+  status: VerificationRequestStatus;
+  admin_notes?: string | null;
+  created_at: string;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
+}
+
+/** Body of PUT /admin/users/{id}. Every field is optional. */
+export interface AdminUserUpdate {
+  name?: string;
+  phone?: string;
+  bio?: string;
+  address?: string;
+  role?: UserRole;
+  school_id?: string | null;
+  school_issued_id?: string;
+  verification_status?: VerificationStatus;
+  is_active?: boolean;
+}
+
+/** Body of POST /admin/schools. */
+export interface SchoolCreate {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  contact_email: string;
+  contact_phone?: string;
+}
+
+/** Body of PUT /admin/schools/{id}. */
+export type SchoolUpdate = Partial<SchoolCreate> & { is_active?: boolean };
+
+/** Query params of GET /admin/users. */
+export interface AdminUsersQuery {
+  q?: string;
+  role?: UserRole;
+  verification_status?: VerificationStatus;
+  is_active?: boolean;
+  school_id?: string;
+  skip?: number;
+  limit?: number;
+}
+
+/** Query params of GET /admin/schools. */
+export interface AdminSchoolsQuery {
+  include_inactive?: boolean;
+  q?: string;
+  skip?: number;
+  limit?: number;
+}

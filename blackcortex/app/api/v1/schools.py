@@ -94,6 +94,8 @@ async def update_school(
     data: SchoolUpdate,
     user: User = Depends(require_role(UserRole.SCHOOL_ADMIN)),
 ):
+    if "is_active" in data.model_fields_set and user.role != UserRole.ROOT:
+        raise ForbiddenError("Only platform admins can change a school's active state")
     school = await school_service.get_school_by_id(school_id)
     _require_school_admin_access(user, school)
     updated = await school_service.update_school(school, data)
@@ -173,7 +175,10 @@ async def review_association_request(
     _require_school_admin_access(user, school)
     # B6: Pass expected_school_id for cross-school validation
     req = await association_service.review_association_request(
-        req_id, body.approved, user, body.rejection_reason,
+        req_id,
+        body.approved,
+        user,
+        body.rejection_reason,
         expected_school_id=school_id,
     )
     return _assoc_to_response(req)

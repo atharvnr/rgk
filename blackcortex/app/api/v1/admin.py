@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth.permissions import require_role
 from app.models.school_association_request import (
@@ -7,12 +7,28 @@ from app.models.school_association_request import (
 )
 from app.models.user import User, UserRole, VerificationStatus
 from app.models.volunteer_session import SessionStatus, VolunteerSession
-from app.schemas.admin import AssignAdminBody, PlatformAnalyticsResponse, VerifyUserBody
+from app.schemas.admin import (
+    AdminUserUpdate,
+    AssignAdminBody,
+    PlatformAnalyticsResponse,
+    VerifyUserBody,
+)
 from app.schemas.app_config import AppConfigCreate, AppConfigResponse, AppConfigUpdate
-from app.services import audit_service, config_service, school_service, user_service
-from app.utils.response import paginated_response
-from app.services.verification_service import list_verification_requests, resolve_verification_request
-from app.schemas.verification import VerificationRequestResponse, VerificationRequestResolve
+from app.schemas.school import SchoolCreate, SchoolResponse, SchoolUpdate
+from app.schemas.user import UserResponse
+from app.schemas.verification import VerificationRequestResolve
+from app.services import (
+    admin_service,
+    audit_service,
+    config_service,
+    school_service,
+    user_service,
+)
+from app.services.verification_service import (
+    list_verification_requests,
+    resolve_verification_request,
+)
+from app.utils.response import model_to_response, paginated_response, user_to_response
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -148,6 +164,120 @@ async def get_audit_log(
     return paginated_response(items, total, skip, limit, _audit_to_response)
 
 
+# --- User CRUD ---
+
+
+@router.get("/users")
+async def admin_list_users(
+    q: str | None = None,
+    role: UserRole | None = None,
+    verification_status: VerificationStatus | None = None,
+    is_active: bool | None = None,
+    school_id: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    items, total = await admin_service.list_users(
+        skip, limit, q, role, verification_status, is_active, school_id
+    )
+    return paginated_response(items, total, skip, limit, user_to_response)
+
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+async def admin_get_user(
+    user_id: str,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    return user_to_response(await user_service.get_user_by_id(user_id))
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+async def admin_update_user(
+    user_id: str,
+    data: AdminUserUpdate,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    updated, changed = await admin_service.update_user(user, user_id, data)
+    await audit_service.log_action(user, "user.admin_update", "user", user_id, {"fields": changed})
+    return user_to_response(updated)
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def admin_delete_user(
+    user_id: str,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    email = await admin_service.delete_user(user, user_id)
+    await audit_service.log_action(user, "user.delete", "user", user_id, {"email": email})
+
+
+# --- School CRUD ---
+
+
+def _school_to_response(school) -> dict:
+    return {
+        "id": str(school.id),
+        "name": school.name,
+        "address": school.address,
+        "city": school.city,
+        "state": school.state,
+        "zip_code": school.zip_code,
+        "contact_email": school.contact_email,
+        "contact_phone": school.contact_phone,
+        "admin_ids": school.admin_ids,
+        "is_active": school.is_active,
+        "created_at": school.created_at,
+        "updated_at": school.updated_at,
+    }
+
+
+@router.get("/schools")
+async def admin_list_schools(
+    include_inactive: bool = False,
+    q: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    items, total = await admin_service.list_schools(skip, limit, include_inactive, q)
+    return paginated_response(items, total, skip, limit, _school_to_response)
+
+
+@router.post("/schools", response_model=SchoolResponse, status_code=201)
+async def admin_create_school(
+    data: SchoolCreate,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    school = await admin_service.create_school(data)
+    await audit_service.log_action(
+        user, "school.create", "school", str(school.id), {"name": school.name}
+    )
+    return _school_to_response(school)
+
+
+@router.put("/schools/{school_id}", response_model=SchoolResponse)
+async def admin_update_school(
+    school_id: str,
+    data: SchoolUpdate,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    school, changed = await admin_service.update_school(school_id, data)
+    await audit_service.log_action(user, "school.update", "school", school_id, {"fields": changed})
+    return _school_to_response(school)
+
+
+@router.delete("/schools/{school_id}", status_code=204)
+async def admin_delete_school(
+    school_id: str,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
+    school = await admin_service.delete_school(school_id)
+    await audit_service.log_action(
+        user, "school.delete", "school", school_id, {"name": school.name}
+    )
+
+
 # --- User Verification ---
 
 
@@ -175,15 +305,19 @@ async def verify_user(
 async def admin_list_verification_requests(user: User = Depends(require_role(UserRole.ROOT))):
     items, _ = await list_verification_requests()
     # return array of verification request responses
-    return [VerificationRequestResponse.model_validate(i) for i in items]
+    return [model_to_response(i) for i in items]
 
 
 @router.put("/verification-requests/{request_id}/resolve")
-async def admin_resolve_verification_request(request_id: str, data: VerificationRequestResolve, user: User = Depends(require_role(UserRole.ROOT))):
+async def admin_resolve_verification_request(
+    request_id: str,
+    data: VerificationRequestResolve,
+    user: User = Depends(require_role(UserRole.ROOT)),
+):
     req = await resolve_verification_request(request_id, str(user.id), data.notes)
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
-    return VerificationRequestResponse.model_validate(req)
+    return model_to_response(req)
 
 
 # --- Assign School Admin ---

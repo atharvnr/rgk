@@ -1,7 +1,7 @@
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
 
-type ApiError = FetchBaseQueryError | SerializedError | undefined;
+export type ApiError = FetchBaseQueryError | SerializedError | undefined;
 
 function extractDetail(data: unknown): string | undefined {
   if (

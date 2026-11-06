@@ -1,13 +1,15 @@
 import logging
 import time
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
+from app.auth.root_users import is_root_email
 from app.config import settings
-from app.models.user import User
+from app.models.user import User, UserRole, VerificationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,16 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not registered",
         )
+
+    if is_root_email(user.email) and user.role != UserRole.ROOT:
+        await user.set(
+            {
+                "role": UserRole.ROOT,
+                "verification_status": VerificationStatus.NOT_REQUIRED,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+        logger.info("Promoted user %s to root via RGK_ROOT_USERS", user.id)
 
     if not user.is_active:
         raise HTTPException(

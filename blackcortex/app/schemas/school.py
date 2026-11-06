@@ -21,6 +21,7 @@ class SchoolUpdate(BaseModel):
     zip_code: str | None = Field(None, max_length=10)
     contact_email: EmailStr | None = None
     contact_phone: str | None = Field(None, max_length=20)
+    is_active: bool | None = None
 
 
 class SchoolResponse(BaseModel):

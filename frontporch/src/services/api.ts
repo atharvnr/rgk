@@ -7,11 +7,20 @@ import {
 } from "@reduxjs/toolkit/query/react";
 import type { RootState } from "../store";
 import type {
+  AdminSchoolsQuery,
+  AdminUsersQuery,
+  AdminUserUpdate,
   PaginatedResponse,
+  PlatformAnalytics,
   ProxyLink,
+  PublicStats,
+  SchoolCreate,
   SchoolHours,
   School,
+  SchoolUpdate,
   User,
+  VerificationRequest,
+  VerificationStatus,
   VolunteerRequest,
   VolunteerSession,
 } from "../types";
@@ -27,7 +36,9 @@ let API_URL = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API;
 // non-local browser (deployed site), prefer the production API. This prevents
 // clients from trying to connect to the developer's localhost and seeing
 // "Unable to connect" errors in production builds.
-if (typeof window !== "undefined") {
+// On iOS/Android React Native defines `window` (as the global object) but not
+// `window.location`, so check for location itself.
+if (typeof window !== "undefined" && window.location) {
   const hostname = window.location.hostname;
   const runningLocally = hostname === "localhost" || hostname === "127.0.0.1";
   if (!runningLocally && API_URL.includes("localhost")) {
@@ -47,6 +58,25 @@ const rawBaseQuery = fetchBaseQuery({
 });
 
 let refreshPromise: Promise<string | null> | null = null;
+
+type QueryValue = string | number | boolean | null | undefined;
+
+/** Appends the defined, non-empty params to `path` as a query string. */
+function withQuery(path: string, params: Record<string, QueryValue>): string {
+  const parts = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
+    );
+  return parts.length ? `${path}?${parts.join("&")}` : path;
+}
+
+// Tags for the admin area. Lists provide `{ id: "LIST" }` plus one tag per
+// item, so a mutation can refresh every list and the one detail it touched.
+const ADMIN_USER_LIST = { type: "AdminUser", id: "LIST" } as const;
+const ADMIN_SCHOOL_LIST = { type: "AdminSchool", id: "LIST" } as const;
+const VERIFICATION_LIST = { type: "Verification", id: "LIST" } as const;
 
 const baseQueryWithErrorHandling: BaseQueryFn<
   string | FetchArgs,
@@ -93,11 +123,24 @@ const baseQueryWithErrorHandling: BaseQueryFn<
 export const api = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithErrorHandling,
-  tagTypes: ["User", "School", "Request", "Session"],
+  tagTypes: [
+    "User",
+    "School",
+    "Request",
+    "Session",
+    "AdminUser",
+    "AdminSchool",
+    "Verification",
+  ],
   endpoints: (builder) => ({
     // Auth
     register: builder.mutation<User, Partial<User>>({
       query: (body) => ({ url: "/auth/register", method: "POST", body }),
+    }),
+
+    // Public (no auth required)
+    getPublicStats: builder.query<PublicStats, void>({
+      query: () => "/public/stats",
     }),
 
     // Users
@@ -244,14 +287,149 @@ export const api = createApi({
       query: () => "/proxy/links",
     }),
     // Verification requests (for unverified users to ask admin for help)
-    createVerificationRequest: builder.mutation<any, { message?: string }>({
+    createVerificationRequest: builder.mutation<
+      VerificationRequest,
+      { message?: string }
+    >({
       query: (body) => ({ url: "/verification-requests", method: "POST", body }),
+      invalidatesTags: [VERIFICATION_LIST],
     }),
-    getAdminVerificationRequests: builder.query<any[], void>({
+
+    // Admin (root only)
+    getAdminAnalytics: builder.query<PlatformAnalytics, void>({
+      query: () => "/admin/analytics",
+      // Counts move whenever users, schools or verification requests change.
+      providesTags: [ADMIN_USER_LIST, ADMIN_SCHOOL_LIST, VERIFICATION_LIST],
+    }),
+    getAdminVerificationRequests: builder.query<VerificationRequest[], void>({
       query: () => "/admin/verification-requests",
+      providesTags: [VERIFICATION_LIST],
     }),
-    resolveVerificationRequest: builder.mutation<any, { id: string; notes?: string }>({
-      query: ({ id, notes }) => ({ url: `/admin/verification-requests/${id}/resolve`, method: "PUT", body: { notes } }),
+    verifyUser: builder.mutation<
+      { id: string; verification_status: VerificationStatus },
+      {
+        userId: string;
+        verification_status: Extract<
+          VerificationStatus,
+          "verified" | "verification_failed"
+        >;
+      }
+    >({
+      query: ({ userId, verification_status }) => ({
+        url: `/admin/users/${userId}/verify`,
+        method: "PUT",
+        body: { verification_status },
+      }),
+      invalidatesTags: (_result, _error, { userId }) => [
+        { type: "AdminUser", id: userId },
+        ADMIN_USER_LIST,
+      ],
+    }),
+    resolveVerificationRequest: builder.mutation<
+      VerificationRequest,
+      { id: string; notes?: string }
+    >({
+      query: ({ id, notes }) => ({
+        url: `/admin/verification-requests/${id}/resolve`,
+        method: "PUT",
+        body: { notes },
+      }),
+      invalidatesTags: [VERIFICATION_LIST],
+    }),
+
+    getAdminUsers: builder.query<PaginatedResponse<User>, AdminUsersQuery>({
+      query: ({ skip = 0, limit = 25, ...filters }) =>
+        withQuery("/admin/users", { ...filters, skip, limit }),
+      providesTags: (result) => [
+        ...(result?.items ?? []).map((u) => ({
+          type: "AdminUser" as const,
+          id: u.id,
+        })),
+        ADMIN_USER_LIST,
+      ],
+    }),
+    getAdminUser: builder.query<User, string>({
+      query: (id) => `/admin/users/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "AdminUser", id }],
+    }),
+    updateAdminUser: builder.mutation<
+      User,
+      { id: string; body: AdminUserUpdate }
+    >({
+      query: ({ id, body }) => ({
+        url: `/admin/users/${id}`,
+        method: "PUT",
+        body,
+      }),
+      // A role/school change also moves the user in and out of school
+      // admin_ids, and editing yourself changes /users/me.
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "AdminUser", id },
+        ADMIN_USER_LIST,
+        "AdminSchool",
+        "User",
+      ],
+    }),
+    deleteAdminUser: builder.mutation<void, string>({
+      query: (id) => ({ url: `/admin/users/${id}`, method: "DELETE" }),
+      // The user's own detail tag is left alone so the screen being left does
+      // not refetch a user that no longer exists.
+      invalidatesTags: [ADMIN_USER_LIST, "AdminSchool", VERIFICATION_LIST],
+    }),
+
+    getAdminSchools: builder.query<
+      PaginatedResponse<School>,
+      AdminSchoolsQuery
+    >({
+      query: ({ skip = 0, limit = 20, include_inactive, q }) =>
+        withQuery("/admin/schools", {
+          include_inactive: include_inactive || undefined,
+          q,
+          skip,
+          limit,
+        }),
+      providesTags: (result) => [
+        ...(result?.items ?? []).map((s) => ({
+          type: "AdminSchool" as const,
+          id: s.id,
+        })),
+        ADMIN_SCHOOL_LIST,
+      ],
+    }),
+    // There is no GET /admin/schools/{id}; the public detail endpoint also
+    // returns inactive schools, which is what the admin editor needs.
+    getAdminSchool: builder.query<School, string>({
+      query: (id) => `/schools/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "AdminSchool", id }],
+    }),
+    createAdminSchool: builder.mutation<School, SchoolCreate>({
+      query: (body) => ({ url: "/admin/schools", method: "POST", body }),
+      invalidatesTags: [ADMIN_SCHOOL_LIST, "School"],
+    }),
+    updateAdminSchool: builder.mutation<
+      School,
+      { id: string; body: SchoolUpdate }
+    >({
+      query: ({ id, body }) => ({
+        url: `/admin/schools/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "AdminSchool", id },
+        ADMIN_SCHOOL_LIST,
+        "School",
+      ],
+    }),
+    deleteAdminSchool: builder.mutation<void, string>({
+      query: (id) => ({ url: `/admin/schools/${id}`, method: "DELETE" }),
+      // Soft delete: the school still exists, so its detail refetches as
+      // inactive.
+      invalidatesTags: (_result, _error, id) => [
+        { type: "AdminSchool", id },
+        ADMIN_SCHOOL_LIST,
+        "School",
+      ],
     }),
   }),
 });
@@ -282,4 +460,16 @@ export const {
   useGetMyProxyLinksQuery,
   useGetAdminVerificationRequestsQuery,
   useResolveVerificationRequestMutation,
+  useGetPublicStatsQuery,
+  useGetAdminAnalyticsQuery,
+  useVerifyUserMutation,
+  useGetAdminUsersQuery,
+  useGetAdminUserQuery,
+  useUpdateAdminUserMutation,
+  useDeleteAdminUserMutation,
+  useGetAdminSchoolsQuery,
+  useGetAdminSchoolQuery,
+  useCreateAdminSchoolMutation,
+  useUpdateAdminSchoolMutation,
+  useDeleteAdminSchoolMutation,
 } = api;

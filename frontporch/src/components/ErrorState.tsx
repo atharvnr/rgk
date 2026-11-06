@@ -6,6 +6,8 @@ interface ErrorStateProps {
   title?: string;
   description: string;
   onRetry?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export function ErrorState({
@@ -13,7 +15,11 @@ export function ErrorState({
   title = "Something went wrong",
   description,
   onRetry,
+  actionLabel,
+  onAction,
 }: ErrorStateProps) {
+  const hasAction = Boolean(actionLabel && onAction);
+
   return (
     <View style={styles.container}>
       <Icon source={icon} size={64} color="#D32F2F" />
@@ -26,6 +32,15 @@ export function ErrorState({
       {onRetry && (
         <Button mode="contained" onPress={onRetry} style={styles.button}>
           Try Again
+        </Button>
+      )}
+      {hasAction && (
+        <Button
+          mode={onRetry ? "outlined" : "contained"}
+          onPress={onAction}
+          style={onRetry ? styles.secondaryButton : styles.button}
+        >
+          {actionLabel}
         </Button>
       )}
     </View>
@@ -50,5 +65,8 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 24,
+  },
+  secondaryButton: {
+    marginTop: 12,
   },
 });

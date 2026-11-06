@@ -23,12 +23,59 @@ infra/                # Docker Compose (Mongo, Redis, API, Watchtower), nginx, d
 
 | Role | Description |
 |------|-------------|
-| `root` | Platform super-admin. Auto-assigned via `RGK_ROOT_USERS` env var. |
+| `root` | Platform super-admin. Assigned by the `RGK_ROOT_USERS` env var at registration and on any later login (Gmail dots and `+tags` are ignored). |
 | `school_admin` | Administers a school (1 per school). Manages staff and volunteers. |
 | `school_user` | Teacher/staff who reviews and approves volunteer sessions. |
 | `volunteer` | Student who accepts help requests and logs hours. |
 | `needy` | Elderly person who creates help requests. |
 | `needy_proxy` | Caregiver who acts on behalf of an elderly person. |
+
+## Admin access
+
+### Configuring root emails
+
+Root users are listed in `RGK_ROOT_USERS`, a JSON array of emails, e.g. `["you@gmail.com"]`.
+A user whose email matches is made root when they register and on their next authenticated request.
+Existing root users are never demoted by removing them from the list.
+
+- **New droplet:** set the GitHub repo variable `RGK_ROOT_USERS`. The Droplet Bootstrap workflow writes it to `infra/.env`.
+- **Running droplet:** edit `RGK_ROOT_USERS` in `infra/.env`, then apply it:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d api
+```
+
+### Calling the admin API with curl
+
+Sign in on the web app, then in the browser devtools console run:
+
+```js
+localStorage.getItem("rgk_access_token")
+```
+
+```bash
+export TOKEN="<paste token>"
+API=https://api.rentgrandkids.org/api/v1
+AUTH="Authorization: Bearer $TOKEN"
+
+# Search users
+curl -H "$AUTH" "$API/admin/users?q=alice&role=volunteer&limit=20"
+
+# Change a user's role
+curl -X PUT -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"role": "school_admin", "school_id": "<school_id>"}' "$API/admin/users/<user_id>"
+
+# Delete a user
+curl -X DELETE -H "$AUTH" "$API/admin/users/<user_id>"
+
+# Create a school
+curl -X POST -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"name":"Lincoln High","address":"1 Main St","city":"Springfield","state":"IL","zip_code":"62701","contact_email":"office@lincoln.org"}' \
+  "$API/admin/schools"
+
+# List schools (add include_inactive=true to see soft-deleted ones)
+curl -H "$AUTH" "$API/admin/schools?include_inactive=true"
+```
 
 ## Setup
 
@@ -100,6 +147,9 @@ npx jest
 - `GET /health` — Basic liveness check
 - `GET /health/ready` — Readiness probe (MongoDB + Redis)
 
+### Public
+- `GET /api/v1/public/stats` — Public impact stats (no auth, cached 5 min)
+
 ### Requests
 - `POST /api/v1/requests/` — Create help request (needy, needy_proxy)
 - `GET /api/v1/requests/` — List requests
@@ -123,6 +173,10 @@ npx jest
 - `GET /api/v1/admin/audit-log` — Audit trail
 - `PUT /api/v1/admin/users/{id}/verify` — Update verification status
 - `PUT /api/v1/admin/schools/{id}/assign-admin` — Assign school admin
+- `GET /api/v1/admin/users` — List/search users (`q`, `role`, `verification_status`, `is_active`, `school_id`, `skip`, `limit`)
+- `GET/PUT/DELETE /api/v1/admin/users/{id}` — Get, update (role, school, status, profile) or hard-delete a user
+- `GET/POST /api/v1/admin/schools` — List schools (`include_inactive`, `q`) / create a school
+- `PUT/DELETE /api/v1/admin/schools/{id}` — Update a school (incl. `is_active`) / soft-delete it
 
 ### Proxy
 - `POST /api/v1/proxy/link` — Request proxy link (needy_proxy)
@@ -135,6 +189,29 @@ npx jest
 - `POST /api/v1/internal/jobs/expire-associations` — Expire stale association requests
 - `POST /api/v1/internal/jobs/expire-sessions` — Expire unconfirmed sessions (7d)
 - `POST /api/v1/internal/jobs/notify-stale-requests` — Flag stale open requests (14d)
+
+## Demo data
+
+Seed a realistic demo world (one school, volunteers, elders, requests, sessions, ratings):
+
+```bash
+cd blackcortex
+python -m app.seed.demo
+```
+
+All demo users have an `auth0_id` starting with `demo|` and a `@demo.rentgrandkids.org` email; the school is "Lincoln High School". Running it again is a no-op while the demo school exists. `--reset` deletes the previous demo data (and everything pointing at it) before seeding.
+
+To land a real Auth0 login in a populated account, bind it with `--admin`, `--volunteer` and/or `--elder` (each `auth0_id:email`); the school admin, the most active volunteer and the most active elder then use that identity:
+
+```bash
+python -m app.seed.demo --reset --volunteer "google-oauth2|1234:me@example.com"
+```
+
+In Docker:
+
+```bash
+docker compose -f infra/docker-compose.yml exec api python -m app.seed.demo --reset
+```
 
 ## Key Workflows
 
@@ -185,7 +262,7 @@ Production is a single DigitalOcean droplet (`s-1vcpu-2gb`, SFO3) behind Cloudfl
 
 - `infra/docker-compose.yml` runs MongoDB, Redis, the API image from GHCR and Watchtower.
 - `infra/init.sh` bootstraps a fresh droplet (swap, Docker, nginx, origin cert, compose stack, nightly Mongo backup). It is run by the **Droplet Bootstrap** workflow against `vars.DROPLET_IP`.
-- Pushes to `main` touching `blackcortex/` build and push the API image; Watchtower rolls it out within 5 minutes.
+- Pushes to `main` touching `blackcortex/` build and push the API image, then rewrite the droplet's `infra/.env` from the repo variables (`RGK_ROOT_USERS`, `CORS_ORIGINS`, Auth0 settings) and restart the API on the new image. Watchtower remains as a fallback.
 - Pushes to `main` touching `frontporch/` export the web build and rsync it to `/var/www/rgk`.
 - Both deploy workflows can also be run by hand from the Actions tab.
 

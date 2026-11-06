@@ -36,3 +36,47 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+  sync-env-and-restart:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        env:
+          SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ vars.DROPLET_IP }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Write backend .env
+        env:
+          AUTH0_DOMAIN: ${{ vars.EXPO_PUBLIC_AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE: ${{ vars.EXPO_PUBLIC_AUTH0_AUDIENCE }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+          RGK_ROOT_USERS: ${{ vars.RGK_ROOT_USERS }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+        run: |
+          cat > backend.env << EOF
+          DATABASE_NAME=rgk
+          DEBUG=false
+          RGK_ROOT_USERS=${RGK_ROOT_USERS}
+          INTERNAL_API_KEY=${INTERNAL_API_KEY}
+          AUTH0_DOMAIN=${AUTH0_DOMAIN}
+          AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
+          CORS_ORIGINS=${CORS_ORIGINS}
+          EOF
+
+      - name: Copy .env and roll out the new image
+        env:
+          HOST: ${{ vars.DROPLET_IP }}
+          USER: ${{ vars.DROPLET_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key backend.env "${USER}@${HOST}:/root/rgk/infra/.env"
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" \
+            "docker compose -f /root/rgk/infra/docker-compose.yml pull api && \
+             docker compose -f /root/rgk/infra/docker-compose.yml up -d api && \
+             docker compose -f /root/rgk/infra/docker-compose.yml ps api"

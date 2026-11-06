@@ -75,7 +75,7 @@ async def test_register_root_auto_assign(mock_redis):
 
     transport = ASGITransport(app=app)
 
-    with patch("app.services.user_service.settings") as mock_settings:
+    with patch("app.auth.root_users.settings") as mock_settings:
         mock_settings.rgk_root_users = ["rootuser@example.com"]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             resp = await ac.post(
