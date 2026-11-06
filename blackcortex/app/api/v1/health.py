@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
-from app.database import get_redis, motor_client
+from app import database
+from app.database import get_redis
 
 router = APIRouter(tags=["health"])
 
@@ -16,8 +17,8 @@ async def health_ready():
 
     # Check MongoDB
     try:
-        if motor_client:
-            await motor_client.admin.command("ping")
+        if database.motor_client:
+            await database.motor_client.admin.command("ping")
             checks["mongodb"] = True
     except Exception:
         pass
