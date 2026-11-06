@@ -1,7 +1,27 @@
 services:
+  mongo:
+    image: mongo:7
+    container_name: rgk-mongo
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   redis:
     image: redis:7-alpine
+    container_name: rgk-redis
     restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -9,6 +29,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 96M
 
   api:
     image: ghcr.io/atharvnr/rgk-api:latest
@@ -16,15 +40,29 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
+      mongo:
+        condition: service_healthy
       redis:
         condition: service_healthy
     environment:
+      - MONGODB_URI=mongodb://mongo:27017/rgk
       - REDIS_URL=redis://redis:6379
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 384M
 
   watchtower:
     image: nickfedor/watchtower:latest
+    container_name: rgk-watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -34,6 +72,11 @@ services:
       - WATCHTOWER_CLEANUP=true
       - DOCKER_CONFIG=/
     command: rgk-api
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
 volumes:
+  mongo_data:
   redis_data:

@@ -53,3 +53,4 @@ docker-compose.override.yml
 *.key
 scrap/
 skills/
+auth.sh

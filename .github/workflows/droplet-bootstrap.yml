@@ -31,14 +31,17 @@ jobs:
 
       - name: Write backend .env
         env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           AUTH0_DOMAIN: ${{ vars.EXPO_PUBLIC_AUTH0_DOMAIN }}
           AUTH0_AUDIENCE: ${{ vars.EXPO_PUBLIC_AUTH0_AUDIENCE }}
           CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
+          RGK_ROOT_USERS: ${{ vars.RGK_ROOT_USERS }}
+          INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
         run: |
           cat > infra/.env << EOF
-          MONGODB_URI=${MONGODB_URI}
           DATABASE_NAME=rgk
+          DEBUG=false
+          RGK_ROOT_USERS=${RGK_ROOT_USERS}
+          INTERNAL_API_KEY=${INTERNAL_API_KEY}
           AUTH0_DOMAIN=${AUTH0_DOMAIN}
           AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
           CORS_ORIGINS=${CORS_ORIGINS}

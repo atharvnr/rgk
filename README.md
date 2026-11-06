@@ -16,7 +16,7 @@ blackcortex/          # FastAPI backend (Python 3.12+)
     utils/            # Custom HTTP exceptions
   tests/              # pytest-asyncio test suite
 frontporch/           # React Native (Expo) frontend
-infra/                # Docker Compose, local dev scripts
+infra/                # Docker Compose (Mongo, Redis, API, Watchtower), nginx, droplet bootstrap
 ```
 
 ## Roles
@@ -178,3 +178,15 @@ School-affiliated users (admin, user, volunteer) request association with a scho
 | `EXPO_PUBLIC_AUTH0_DOMAIN` | Auth0 tenant domain | — |
 | `EXPO_PUBLIC_AUTH0_CLIENT_ID` | Auth0 SPA client ID | — |
 | `EXPO_PUBLIC_AUTH0_AUDIENCE` | Auth0 API audience | — |
+
+## Deployment
+
+Production is a single DigitalOcean droplet (`s-1vcpu-2gb`, SFO3) behind Cloudflare.
+
+- `infra/docker-compose.yml` runs MongoDB, Redis, the API image from GHCR and Watchtower.
+- `infra/init.sh` bootstraps a fresh droplet (swap, Docker, nginx, origin cert, compose stack, nightly Mongo backup). It is run by the **Droplet Bootstrap** workflow against `vars.DROPLET_IP`.
+- Pushes to `main` touching `blackcortex/` build and push the API image; Watchtower rolls it out within 5 minutes.
+- Pushes to `main` touching `frontporch/` export the web build and rsync it to `/var/www/rgk`.
+- Both deploy workflows can also be run by hand from the Actions tab.
+
+See `infra/MIGRATION.md` for moving the droplet to a new region or size.
