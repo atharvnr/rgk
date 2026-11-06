@@ -1,11 +1,13 @@
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
+import * as Linking from "expo-linking";
 import { spacing, theme } from "../../theme";
 import { LandingButton } from "./LandingButton";
 import { Section, useLandingLayout } from "./Section";
 
 const { colors } = theme;
+const BLOG_URL = "https://blog.rentgrandkids.org";
 
 interface FooterProps {
   bottomInset?: number;
@@ -26,12 +28,19 @@ export function Footer({ bottomInset = 0 }: FooterProps) {
       A student-built nonprofit project · {year}
     </Text>
   );
-  const signIn = (
-    <LandingButton
-      label="Sign in"
-      mode="link"
-      onPress={() => router.push("/(auth)/login")}
-    />
+  const links = (
+    <View style={styles.links}>
+      <LandingButton
+        label="Blog"
+        mode="link"
+        onPress={() => Linking.openURL(BLOG_URL)}
+      />
+      <LandingButton
+        label="Sign in"
+        mode="link"
+        onPress={() => router.push("/(auth)/login")}
+      />
+    </View>
   );
 
   return (
@@ -45,13 +54,13 @@ export function Footer({ bottomInset = 0 }: FooterProps) {
             {brand}
             {tagline}
           </View>
-          {signIn}
+          {links}
         </View>
       ) : (
         <View style={styles.stack}>
           <View style={styles.row}>
             {brand}
-            {signIn}
+            {links}
           </View>
           {tagline}
         </View>
@@ -79,6 +88,11 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: spacing.xs,
+  },
+  links: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   brand: {
     color: colors.onSurface,
